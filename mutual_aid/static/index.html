@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍊</text></svg>">
+<title>柑橘产季互助池 · 预付与退回清算</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --ink:#1f2933; --mut:#697586;
+          --brand:#c2410c; --brand2:#9a3412; --ok:#15803d; --warn:#b45309; --bad:#b91c1c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.55 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { background:linear-gradient(120deg,#7c2d12,#c2410c); color:#fff; padding:14px 22px;
+           display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  header h1 { font-size:18px; margin:0 18px 0 0; }
+  header .ctl { display:flex; align-items:center; gap:6px; font-size:13px; }
+  select,input,button,textarea { font:inherit; }
+  header select,header input { border-radius:6px; border:0; padding:5px 8px; }
+  header input { width:90px; }
+  main { display:grid; grid-template-columns:370px 1fr; gap:16px; padding:16px 22px; }
+  @media (max-width:980px){ main{ grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+  .card h2 { font-size:14px; margin:0 0 10px; color:var(--brand2); display:flex; justify-content:space-between; align-items:center;}
+  label { display:block; font-size:12px; color:var(--mut); margin:7px 0 2px; }
+  input[type=text],input[type=number],select,textarea {
+    width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  textarea { min-height:64px; font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  button { cursor:pointer; border:1px solid var(--brand); background:var(--brand); color:#fff;
+           border-radius:7px; padding:6px 12px; margin-top:9px; font-size:13px; }
+  button.secondary { background:#fff; color:var(--brand2); }
+  button:hover { filter:brightness(1.05); }
+  button.mini { padding:3px 8px; margin:2px 4px 2px 0; font-size:12px; }
+  .quick button { background:#fff7ed; color:var(--brand2); border-color:#fdba74; }
+  pre#out { background:#0f172a; color:#d7e3f4; padding:14px; border-radius:10px; overflow:auto;
+            min-height:420px; max-height:78vh; font-size:12px; margin:0; white-space:pre-wrap; }
+  .hint { color:var(--mut); font-size:12px; margin-top:6px; }
+  .pill { display:inline-block; border-radius:999px; padding:1px 9px; font-size:12px; }
+  .pill.ok{background:#dcfce7;color:var(--ok);} .pill.warn{background:#fef3c7;color:var(--warn);}
+  .pill.bad{background:#fee2e2;color:var(--bad);} .pill.mut{background:#e5e7eb;color:#374151;}
+  .gridbtns button{ width:100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🍊 产季互助池 · 预付与退回清算</h1>
+  <div class="ctl">身份
+    <select id="role">
+      <option value="coop">互助社经办人</option>
+      <option value="member">成员</option>
+      <option value="funder">出资代表</option>
+    </select>
+  </div>
+  <div class="ctl">成员代码 <input id="as" value="P01" placeholder="P01"></div>
+  <div class="ctl"><button class="mini" style="background:#fff;color:#9a3412;border:0" onclick="refreshAll()">刷新余额/视角</button></div>
+  <span style="font-size:12px;opacity:.85">金额单位：分 · 经营边界 [from,to)</span>
+</header>
+
+<main>
+<section>
+  <div class="card quick">
+    <h2>常用查询</h2>
+    <button class="mini" onclick="get('/api/available')">真实可用余额</button>
+    <button class="mini" onclick="get('/api/next-batch?round=B5')">下一批 B5 可用</button>
+    <button class="mini" onclick="get('/api/quota/statement')">额度流水(出资代表)</button>
+    <button class="mini" onclick="get('/api/members/P01/view')">P01 权益视角</button>
+    <button class="mini" onclick="get('/api/members/P01/deficiencies')">P01 缺件查询</button>
+    <button class="mini" onclick="get('/api/quota/audit?ref=P814')">审计 P814 占额/释放</button>
+  </div>
+
+  <div class="card">
+    <h2>成员交申请 / 更正（同损失不重复）</h2>
+    <div class="row">
+      <div><label>成员代码</label><input id="c_member" value="P02"></div>
+      <div><label>给付批</label><input id="c_round" value="B6"></div>
+      <div><label>shipment</label><input id="c_ship" value="TR-51"></div>
+      <div><label>leg</label><input id="c_leg" type="number" value="1"></div>
+    </div>
+    <button onclick="submitClaim()">提交/更正申请</button>
+    <div class="hint">同一 (成员, shipment, leg) 或同一编号/幂等键重复提交只作更正。</div>
+  </div>
+
+  <div class="card">
+    <h2>交材料 / 查缺件</h2>
+    <div class="row">
+      <div><label>claim_id</label><input id="m_claim" value="E1"></div>
+      <div><label>材料类型 kind</label>
+        <select id="m_kind">
+          <option>cost_voucher</option><option>transport_receipt</option>
+          <option>tenure_proof</option>
+          <option>resale_proof</option><option>identity</option><option>application</option>
+        </select>
+      </div>
+    </div>
+    <label>凭据号 ref</label><input id="m_ref" value="INV-001">
+    <button onclick="submitMaterial(false)">提交材料</button>
+    <button class="secondary" onclick="submitMaterial(true)">提交并标记受理</button>
+    <button class="secondary" onclick="get('/api/claims/'+val('m_claim')+'/deficiencies')">查该次支出缺什么</button>
+  </div>
+
+  <div class="card">
+    <h2>审批预付 / 批次公平分摊</h2>
+    <div class="row">
+      <div><label>批次 round</label><input id="b_round" value="B5"></div>
+      <div><label>当周预算(可空)</label><input id="b_budget" type="number" placeholder="默认池可用"></div>
+    </div>
+    <button class="secondary" onclick="previewBatch()">试算（不写状态）</button>
+    <button onclick="approveBatch()">核准该批预付</button>
+    <button class="secondary" onclick="topupBatch()">回款后按原顺序补足</button>
+  </div>
+
+  <div class="card">
+    <h2>资金回执 / 撤销 / 多余承诺调减</h2>
+    <div class="row">
+      <div><label>资金凭据 ref</label><input id="r_ref" value="P814"></div>
+      <div><label>回执状态</label>
+        <select id="r_state"><option value="paid">paid 到账</option>
+        <option value="returned">returned 未完成退回</option></select>
+      </div>
+    </div>
+    <label>实际到账分（部分拨付时）</label><input id="r_cents" type="number" placeholder="全额留空">
+    <button onclick="receipt()">登记回执</button>
+    <div class="row">
+      <div><label>承诺 id</label><input id="x_cid" value="C2"></div>
+      <div><label>调减分</label><input id="x_amt" type="number" value="17072"></div>
+    </div>
+    <button class="secondary" onclick="releaseExcess()">释放未拨付多余承诺</button>
+    <button class="secondary" onclick="cancelC()">撤销承诺未付余额</button>
+  </div>
+
+  <div class="card">
+    <h2>采购补偿凭证 / 待核对拆分</h2>
+    <label>凭证 JSON（可改成新凭证）</label>
+    <textarea id="v_json">{
+  "issuer": "juice-buyer", "ref": "Y502", "state": "paid",
+  "cents": 50000, "paid_on": "2026-11-28",
+  "parts": [ {"shipment":"TR-51","leg":1,"party_ref":"P01","part_cents":50000} ]
+}</textarea>
+    <label>补偿款去向</label>
+    <select id="v_to"><option value="member">采购方直接给成员（默认）</option>
+      <option value="pool">已进入互助池账户</option></select>
+    <button onclick="addVoucher()">登记并拆分补偿</button>
+    <div class="hint">part_cents 缺失或总额超出明细分摊的部分自动留 suspense，不任选户扣回。</div>
+  </div>
+
+  <div class="card">
+    <h2>终局结清 / 还款 / 应付支付</h2>
+    <div class="row">
+      <div><label>claim_id</label><input id="s_claim" value="E1"></div>
+      <div style="display:flex;align-items:end"><button style="width:100%" onclick="settle()">结清该申请</button></div>
+    </div>
+    <button class="secondary mini" onclick="post('/api/settle-all',{})">全部试结/结清</button>
+    <div class="row">
+      <div><label>应收 D-id</label><input id="rcv_id" placeholder="D1"></div>
+      <div><label>还款分</label><input id="rcv_amt" type="number" value="12928"></div>
+    </div>
+    <label>还款凭据 ref</label><input id="rcv_ref" value="R9001">
+    <button onclick="recovery()">登记成员还款(recovery)</button>
+    <div class="row">
+      <div><label>应付 D-id</label><input id="pay_id" placeholder="D2"></div>
+      <div><label>付款 ref</label><input id="pay_ref" value="PAY1"></div>
+    </div>
+    <button class="secondary" onclick="payable()">支付池应付</button>
+  </div>
+</section>
+
+<section>
+  <div class="card">
+    <h2>返回结果 <span class="pill mut" id="status">ready</span>
+      <button class="mini secondary" onclick="document.getElementById('out').textContent=''">清空</button></h2>
+    <pre id="out">点击左侧操作；所有规则均有对应 Python API 与 unittest 用例。</pre>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const val = id => $(id).value;
+function headers(){ return {'Content-Type':'application/json',
+  'X-Actor-Role': val('role'), 'X-Actor-Code': val('as')}; }
+function show(status, data){
+  $('status').textContent = status;
+  $('status').className = 'pill ' + (status>=200&&status<300?'ok':'bad');
+  $('out').textContent = typeof data==='string'?data:JSON.stringify(data,null,2);
+}
+async function req(method, path, body){
+  try{
+    const r = await fetch(path,{method,headers:headers(),body:body?JSON.stringify(body):undefined});
+    const t = await r.text(); let j; try{j=JSON.parse(t)}catch(e){j=t}
+    show(r.status, j); return j;
+  }catch(e){ show('ERR', String(e)); }
+}
+const get = p => req('GET', p);
+const post = (p,b) => req('POST', p, b||{});
+function submitClaim(){
+  post('/api/claims',{member:val('c_member'),round:val('c_round'),
+    shipment:val('c_ship'),leg:Number(val('c_leg'))});
+}
+function submitMaterial(accept){
+  const body={kind:val('m_kind'),ref:val('m_ref')};
+  if(accept) body.status='accepted';
+  post('/api/claims/'+val('m_claim')+'/materials',body);
+}
+function previewBatch(){
+  const b={}; if(val('b_budget')) b.budget_cents=Number(val('b_budget'));
+  post('/api/batches/'+val('b_round')+'/preview',b);
+}
+function approveBatch(){
+  const b={}; if(val('b_budget')) b.budget_cents=Number(val('b_budget'));
+  post('/api/batches/'+val('b_round')+'/approve',b);
+}
+function topupBatch(){ post('/api/batches/'+val('b_round')+'/top-up',{}); }
+function receipt(){
+  const b={state:val('r_state')}; if(val('r_cents')) b.cents=Number(val('r_cents'));
+  post('/api/transfers/receipt',Object.assign({ref:val('r_ref')},b));
+}
+function releaseExcess(){
+  post('/api/commitments/'+val('x_cid')+'/release-excess',{cents:Number(val('x_amt')),reason:'settlement_excess'});
+}
+function cancelC(){ post('/api/commitments/'+val('x_cid')+'/cancel',{reason:'explicit_cancel'}); }
+function addVoucher(){
+  let v; try{ v=JSON.parse(val('v_json')); }catch(e){ return show('JSON',String(e)); }
+  post('/api/compensation',{voucher:v,proceeds_to:val('v_to')});
+}
+function settle(){ post('/api/claims/'+val('s_claim')+'/settle',{}); }
+function recovery(){
+  const b={cents:Number(val('rcv_amt')),ref:val('rcv_ref')};
+  if(val('rcv_id')) b.receivable_id=val('rcv_id');
+  post('/api/recoveries',b);
+}
+function payable(){ post('/api/receivables/'+val('pay_id')+'/pay',{ref:val('pay_ref')}); }
+function refreshAll(){ get('/api/available'); }
+</script>
+</body>
+</html>

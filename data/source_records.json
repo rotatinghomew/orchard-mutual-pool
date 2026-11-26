@@ -1,0 +1,133 @@
+{
+  "agreement": {
+    "season": "2026Q4",
+    "emergency_bp": 7000,
+    "household_limit_cents": 130000,
+    "opening_pool_cents": 150000,
+    "member_order": [
+      "P01",
+      "P02",
+      "P03"
+    ]
+  },
+  "tenure": [
+    {
+      "orchard": "O3",
+      "member": "P01",
+      "from": "2026-09-01",
+      "to": "2026-11-26"
+    },
+    {
+      "orchard": "O3",
+      "member": "P03",
+      "from": "2026-11-26",
+      "to": "2027-01-01"
+    },
+    {
+      "orchard": "O4",
+      "member": "P02",
+      "from": "2026-09-01",
+      "to": "2027-01-01"
+    }
+  ],
+  "trips": [
+    {
+      "shipment": "TR-51",
+      "leg": 1,
+      "party_ref": "P01",
+      "orchard": "O3",
+      "at": "2026-11-24",
+      "unit": 48,
+      "cost_cents": 198000,
+      "resale_cents": 25000
+    },
+    {
+      "shipment": "TR-51",
+      "leg": 1,
+      "party_ref": "P02",
+      "orchard": "O4",
+      "at": "2026-11-24",
+      "unit": 50,
+      "cost_cents": 141000,
+      "resale_cents": 12000
+    },
+    {
+      "shipment": "TR-62",
+      "leg": 2,
+      "party_ref": "P03",
+      "orchard": "O3",
+      "at": "2026-11-26",
+      "unit": 30,
+      "cost_cents": 108000,
+      "resale_cents": 4000
+    }
+  ],
+  "claims": [
+    {
+      "id": "E1",
+      "member": "P01",
+      "shipment": "TR-51",
+      "leg": 1,
+      "round": "B4",
+      "verified": "2026-11-25T09:00:00+08:00"
+    },
+    {
+      "id": "E2",
+      "member": "P02",
+      "shipment": "TR-51",
+      "leg": 1,
+      "round": "B4",
+      "verified": "2026-11-25T09:10:00+08:00"
+    },
+    {
+      "id": "E3",
+      "member": "P03",
+      "shipment": "TR-62",
+      "leg": 2,
+      "round": "B5",
+      "verified": "2026-11-26T11:10:00+08:00"
+    }
+  ],
+  "pool_transfers": [
+    {
+      "claim": "E1",
+      "ref": "P810",
+      "state": "paid",
+      "cents": 85928
+    },
+    {
+      "claim": "E2",
+      "ref": "P814",
+      "state": "pending",
+      "cents": 64072
+    }
+  ],
+  "compensation": [
+    {
+      "issuer": "juice-buyer",
+      "ref": "Y501",
+      "state": "paid",
+      "cents": 199000,
+      "paid_on": "2026-11-27",
+      "parts": [
+        {
+          "shipment": "TR-51",
+          "leg": 1,
+          "party_ref": "P01",
+          "part_cents": 100000
+        },
+        {
+          "shipment": "TR-51",
+          "leg": 1,
+          "party_ref": "P02",
+          "part_cents": 82000
+        },
+        {
+          "shipment": "TR-62",
+          "leg": 2,
+          "party_ref": "P03"
+        }
+      ]
+    }
+  ]
+}
